@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>График настроения</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .chart-container {
+      width: 100%;
+      max-width: 700px;
+      height: 350px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Моё настроение</h1>
+  <div class="chart-container">
+    <canvas id="chart"></canvas>
+  </div>
+  <script>
+    // Функция конвертации настроения из строки "+2" в число
+    function parseMood(moodStr) {
+      return parseInt(moodStr);
+    }
+    
+    async function draw() {
+      const res = await fetch('/mood.csv');
+      const text = await res.text();
+      const lines = text.trim().split('\n').slice(1);
+      const dates = [], moods = [];
+      
+      lines.forEach(row => {
+        const columns = row.split(',');
+        // Используем первую колонку (full_date) для даты
+        const date = columns[0]; 
+        // Используем пятую колонку (mood) для настроения
+        const mood = parseMood(columns[4]);
+        
+        dates.push(date);
+        moods.push(mood);
+      });
+      
+      // Переворачиваем массивы, чтобы последние даты были справа
+      dates.reverse();
+      moods.reverse();
+      
+      // Цвета для графика
+      const gradientColor = (ctx) => {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(75, 192, 192, 1)');  // Позитивное
+        gradient.addColorStop(0.5, 'rgba(255, 205, 86, 1)'); // Нейтральное
+        gradient.addColorStop(1, 'rgba(255, 99, 132, 1)');   // Негативное
+        return gradient;
+      };
+      
+      new Chart(document.getElementById('chart'), {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [{
+            label: 'Настроение',
+            data: moods,
+            borderColor: function(context) {
+              return gradientColor(context.chart.ctx);
+            },
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              min: -4,
+              max: 4,
+              ticks: {
+                stepSize: 1
+              },
+              title: {
+                display: true,
+                text: 'Уровень настроения'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Дата'
+              }
+            }
+          }
+        }
+      });
+    }
+    draw();
+  </script>
+</body>
+</html>
