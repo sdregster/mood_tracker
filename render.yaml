@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: mood-api
+    runtime: docker
+    dockerfilePath: Dockerfile
+    buildCommand: ""
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: UPLOAD_URL
+        value: "https://mood-api.onrender.com/upload"
+    healthCheckPath: /
+
+  - type: worker
+    name: mood-bot
+    runtime: docker
+    dockerfilePath: Dockerfile.bot
+    buildCommand: ""
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: UPLOAD_URL
+        value: "https://mood-api.onrender.com/upload"
