@@ -1,109 +1,324 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <title>График настроения</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 10px;
+      background-color: #f9fafc;
       max-width: 800px;
       margin: 0 auto;
-    }
-    h1 {
-      text-align: center;
       color: #333;
     }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 5px;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    h1:before {
+      content: "📈";
+      display: inline-block;
+    }
+
     .chart-container {
-      width: 100%;
-      max-width: 700px;
-      height: 350px;
-      margin: 0 auto;
+      background-color: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      margin-top: 10px;
+    }
+
+    .stats-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .stat-box {
+      background-color: #fff;
+      padding: 8px;
+      border-radius: 8px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-box .icon {
+      font-size: 1.2rem;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .stat-box .title {
+      font-size: 12px;
+      color: #6b7280;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .stat-box .value {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .stat-box .detail {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .positive {
+      color: #10b981;
+    }
+
+    .negative {
+      color: #ef4444;
+    }
+
+    .neutral {
+      color: #6b7280;
     }
   </style>
 </head>
+
 <body>
-  <h1>Моё настроение</h1>
+  <h1>График настроения</h1>
   <div class="chart-container">
-    <canvas id="chart"></canvas>
+    <canvas id="moodChart" height="220"></canvas>
   </div>
+
+  <div class="stats-container">
+    <div class="stat-box">
+      <div class="icon neutral">📊</div>
+      <div>
+        <div class="title">Среднее настроение</div>
+        <div class="value" id="avgMood">-</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="icon positive">📈</div>
+      <div>
+        <div class="title">Положительные дни</div>
+        <div class="value" id="positiveDays">-</div>
+        <div class="detail" id="positiveStreak">Стрик: 0 (макс: 0)</div>
+      </div>
+    </div>
+    <div class="stat-box">
+      <div class="icon negative">📉</div>
+      <div>
+        <div class="title">Отрицательные дни</div>
+        <div class="value" id="negativeDays">-</div>
+        <div class="detail" id="negativeStreak">Стрик: 0 (макс: 0)</div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Функция конвертации настроения из строки "+2" в число
-    function parseMood(moodStr) {
-      return parseInt(moodStr);
-    }
-    
-    async function draw() {
-      const res = await fetch('/mood.csv');
+    async function drawChart() {
+      const res = await fetch("/mood.csv");
       const text = await res.text();
-      const lines = text.trim().split('\n').slice(1);
-      const dates = [], moods = [];
-      
-      lines.forEach(row => {
-        const columns = row.split(',');
-        // Используем первую колонку (full_date) для даты
-        const date = columns[0]; 
-        // Используем пятую колонку (mood) для настроения
-        const mood = parseMood(columns[4]);
+      const rows = text.trim().split("\n").slice(1);
+
+      const labels = [];
+      const data = [];
+      const allData = [];
+
+      rows.forEach(row => {
+        const cols = row.split(",");
+        const date = new Date(cols[0]);
+        const mood = parseInt(cols[4]);
         
-        dates.push(date);
-        moods.push(mood);
+        allData.push({
+          date: date,
+          mood: mood
+        });
       });
-      
-      // Переворачиваем массивы, чтобы последние даты были справа
-      dates.reverse();
-      moods.reverse();
-      
-      // Цвета для графика
-      const gradientColor = (ctx) => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(75, 192, 192, 1)');  // Позитивное
-        gradient.addColorStop(0.5, 'rgba(255, 205, 86, 1)'); // Нейтральное
-        gradient.addColorStop(1, 'rgba(255, 99, 132, 1)');   // Негативное
-        return gradient;
-      };
-      
-      new Chart(document.getElementById('chart'), {
-        type: 'line',
+
+      // Сортируем по дате
+      allData.sort((a, b) => a.date - b.date);
+
+      // Заполняем массивы для графика
+      allData.forEach(item => {
+        labels.push(item.date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }));
+        data.push(item.mood);
+      });
+
+      // Рассчитываем статистику
+      calculateStats(allData);
+
+      const ctx = document.getElementById("moodChart").getContext("2d");
+
+      // Градиент положительной области (от жёлтого к зелёному)
+      const gradientUp = ctx.createLinearGradient(0, 0, 0, 110);
+      gradientUp.addColorStop(0, "rgba(16, 185, 129, 0.3)");  // Зеленый
+      gradientUp.addColorStop(1, "rgba(250, 204, 21, 0.2)");  // Желтый
+
+      // Градиент отрицательной области (от жёлтого к красному)
+      const gradientDown = ctx.createLinearGradient(0, 110, 0, 220);
+      gradientDown.addColorStop(0, "rgba(250, 204, 21, 0.2)"); // Желтый
+      gradientDown.addColorStop(1, "rgba(239, 68, 68, 0.3)");  // Красный
+
+      new Chart(ctx, {
+        type: "line",
         data: {
-          labels: dates,
+          labels,
           datasets: [{
-            label: 'Настроение',
-            data: moods,
-            borderColor: function(context) {
-              return gradientColor(context.chart.ctx);
+            label: "Настроение",
+            data: data,
+            fill: {
+              target: 'origin',
+              above: gradientUp,
+              below: gradientDown
             },
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.2
+            segment: {
+              borderColor: function(ctx) {
+                const value = ctx.p1.parsed.y;
+                const nextValue = ctx.p0.parsed.y;
+                
+                // Если оба значения положительные
+                if(value >= 0 && nextValue >= 0) {
+                  return '#10b981'; // Зеленый
+                }
+                // Если оба значения отрицательные 
+                else if(value <= 0 && nextValue <= 0) {
+                  return '#ef4444'; // Красный
+                }
+                // Если переход через ноль (от + к -)
+                else if(value <= 0 && nextValue > 0) {
+                  const gradient = ctx.chart.ctx.createLinearGradient(0, ctx.p0.parsed.y, 0, ctx.p1.parsed.y);
+                  gradient.addColorStop(0, '#10b981'); // Зеленый
+                  gradient.addColorStop(1, '#ef4444'); // Красный
+                  return gradient;
+                }
+                // Если переход через ноль (от - к +)
+                else {
+                  const gradient = ctx.chart.ctx.createLinearGradient(0, ctx.p0.parsed.y, 0, ctx.p1.parsed.y);
+                  gradient.addColorStop(0, '#ef4444'); // Красный
+                  gradient.addColorStop(1, '#10b981'); // Зеленый
+                  return gradient;
+                }
+              }
+            },
+            pointBackgroundColor: function(context) {
+              const value = context.raw;
+              if(value > 0) {
+                return '#10b981'; // Зеленый для положительных
+              } else if(value < 0) {
+                return '#ef4444'; // Красный для отрицательных
+              } else {
+                return '#facc15'; // Желтый для нуля
+              }
+            },
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            borderWidth: 2
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: false,
+          maintainAspectRatio: true,
           scales: {
             y: {
               min: -4,
               max: 4,
-              ticks: {
-                stepSize: 1
-              },
               title: {
                 display: true,
-                text: 'Уровень настроения'
+                text: "Уровень настроения",
+                font: {
+                  size: 11
+                }
+              },
+              grid: {
+                color: "#e5e7eb"
+              },
+              ticks: {
+                font: {
+                  size: 10
+                }
               }
             },
             x: {
               title: {
                 display: true,
-                text: 'Дата'
+                text: "Дата",
+                font: {
+                  size: 11
+                }
+              },
+              grid: {
+                color: "#f3f4f6"
+              },
+              ticks: {
+                font: {
+                  size: 10
+                },
+                maxRotation: 45,
+                minRotation: 45
               }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
             }
           }
         }
       });
     }
-    draw();
+
+    function calculateStats(data) {
+      // Среднее настроение
+      const sum = data.reduce((acc, item) => acc + item.mood, 0);
+      const avg = sum / data.length;
+      document.getElementById("avgMood").textContent = avg.toFixed(1);
+      
+      // Положительные и отрицательные дни
+      const positiveDays = data.filter(item => item.mood > 0).length;
+      const negativeDays = data.filter(item => item.mood < 0).length;
+      document.getElementById("positiveDays").textContent = `${positiveDays}/${data.length}`;
+      document.getElementById("negativeDays").textContent = `${negativeDays}/${data.length}`;
+
+      // Расчет стриков
+      let currentPositiveStreak = 0;
+      let maxPositiveStreak = 0;
+      let currentNegativeStreak = 0;
+      let maxNegativeStreak = 0;
+
+      data.forEach(item => {
+        if (item.mood > 0) {
+          currentPositiveStreak++;
+          currentNegativeStreak = 0;
+          maxPositiveStreak = Math.max(maxPositiveStreak, currentPositiveStreak);
+        } else if (item.mood < 0) {
+          currentNegativeStreak++;
+          currentPositiveStreak = 0;
+          maxNegativeStreak = Math.max(maxNegativeStreak, currentNegativeStreak);
+        } else {
+          currentPositiveStreak = 0;
+          currentNegativeStreak = 0;
+        }
+      });
+
+      document.getElementById("positiveStreak").textContent = `Стрик: ${currentPositiveStreak} (макс: ${maxPositiveStreak})`;
+      document.getElementById("negativeStreak").textContent = `Стрик: ${currentNegativeStreak} (макс: ${maxNegativeStreak})`;
+    }
+
+    drawChart();
   </script>
 </body>
+
 </html>
