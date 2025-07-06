@@ -130,6 +130,7 @@
     async function drawChart() {
       const res = await fetch("/mood.csv");
       const text = await res.text();
+      console.log("Содержимое файла mood.csv, полученное скриптом:", text);
       const rows = text.trim().split("\n").slice(1);
 
       const labels = [];
