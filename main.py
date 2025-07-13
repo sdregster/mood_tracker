@@ -44,7 +44,7 @@ def serve_index():
     return FileResponse("static/index.html")
 
 
-@app.get("/mood.csv")
+@app.get("/mood.csv", include_in_schema=False)
 def get_csv():
     csv_path_abs = os.path.abspath(CSV_PATH)
     logger.info(f"Запрос на получение файла: {csv_path_abs}")
@@ -80,7 +80,7 @@ def get_csv():
             )
 
 
-@app.post("/upload")
+@app.post("/upload", include_in_schema=False)
 async def upload_file(file: UploadFile = File(...)):
     try:
         os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
@@ -92,9 +92,8 @@ async def upload_file(file: UploadFile = File(...)):
         logger.error(f"Ошибка при загрузке файла: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 # Установка Webhook
-@app.get("/set-webhook")
+@app.get("/set-webhook", include_in_schema=True)
 async def set_webhook():
     if not WEBHOOK_URL:
         raise HTTPException(status_code=400, detail="WEBHOOK_URL не задан")
@@ -103,7 +102,7 @@ async def set_webhook():
 
 
 # Получение Telegram-обновлений
-@app.post("/webhook")
+@app.post("/webhook", include_in_schema=False)
 async def telegram_webhook(request: Request):
     try:
         data = await request.json()
