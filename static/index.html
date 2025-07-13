@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <title>График настроения</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
   <style>
     body {
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      margin: 10px;
+      margin: 10px auto;
       background-color: #f9fafc;
       max-width: 800px;
-      margin: 0 auto;
       color: #333;
     }
 
@@ -58,21 +58,17 @@
 
     .stat-box .icon {
       font-size: 1.2rem;
-      display: inline-block;
-      margin-right: 6px;
     }
 
     .stat-box .title {
       font-size: 12px;
       color: #6b7280;
       font-weight: 500;
-      margin-bottom: 2px;
     }
 
     .stat-box .value {
       font-size: 18px;
       font-weight: 600;
-      margin-bottom: 2px;
     }
 
     .stat-box .detail {
@@ -130,47 +126,55 @@
     async function drawChart() {
       const res = await fetch("/mood.csv");
       const text = await res.text();
-      console.log("Содержимое файла mood.csv, полученное скриптом:", text);
       const rows = text.trim().split("\n").slice(1);
+
+      const grouped = {};
+      rows.forEach(row => {
+        const cols = row.match(/(?:"[^"]*"|[^,])+/g)?.map(s => s.replace(/^"|"$/g, '')) || row.split(",");
+        const dateKey = cols[0];
+        const time = cols[3];
+        const mood = parseInt(cols[4]);
+        const note = (cols[7] || "").trim();
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push({ time, mood, note });
+      });
 
       const labels = [];
       const data = [];
-      const allData = [];
-
-      rows.forEach(row => {
-        const cols = row.split(",");
-        const date = new Date(cols[0]);
-        const mood = parseInt(cols[4]);
-        
-        allData.push({
-          date: date,
-          mood: mood
-        });
+      const details = [];
+      const sortedDates = Object.keys(grouped).sort();
+      sortedDates.forEach(dateKey => {
+        const dayEntries = grouped[dateKey];
+        const avgMood = dayEntries.reduce((acc, e) => acc + e.mood, 0) / dayEntries.length;
+        data.push(avgMood);
+        const dateObj = new Date(dateKey);
+        const weekdayShort = dateObj.toLocaleDateString("ru-RU", { weekday: "short" });
+        labels.push(dateObj.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }) + ", " + weekdayShort);
+        details.push({ date: dateKey, entries: dayEntries });
       });
 
-      // Сортируем по дате
-      allData.sort((a, b) => a.date - b.date);
-
-      // Заполняем массивы для графика
-      allData.forEach(item => {
-        labels.push(item.date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short" }));
-        data.push(item.mood);
-      });
-
-      // Рассчитываем статистику
-      calculateStats(allData);
+      calculateStats(data);
 
       const ctx = document.getElementById("moodChart").getContext("2d");
 
-      // Градиент положительной области (от жёлтого к зелёному)
-      const gradientUp = ctx.createLinearGradient(0, 0, 0, 110);
-      gradientUp.addColorStop(0, "rgba(16, 185, 129, 0.3)");  // Зеленый
-      gradientUp.addColorStop(1, "rgba(250, 204, 21, 0.2)");  // Желтый
-
-      // Градиент отрицательной области (от жёлтого к красному)
-      const gradientDown = ctx.createLinearGradient(0, 110, 0, 220);
-      gradientDown.addColorStop(0, "rgba(250, 204, 21, 0.2)"); // Желтый
-      gradientDown.addColorStop(1, "rgba(239, 68, 68, 0.3)");  // Красный
+      const moodBackgroundPlugin = {
+        id: 'moodBackground',
+        beforeDraw: (chart) => {
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return;
+          const { left, right, top, bottom } = chartArea;
+          const gradient = ctx.createLinearGradient(0, top, 0, bottom);
+          gradient.addColorStop(0.0, 'rgba(239, 68, 68, 0.12)');
+          gradient.addColorStop(0.25, 'rgba(250, 204, 21, 0.10)');
+          gradient.addColorStop(0.5, 'rgba(16, 185, 129, 0.08)');
+          gradient.addColorStop(0.75, 'rgba(250, 204, 21, 0.10)');
+          gradient.addColorStop(1.0, 'rgba(239, 68, 68, 0.12)');
+          ctx.save();
+          ctx.fillStyle = gradient;
+          ctx.fillRect(left, top, right - left, bottom - top);
+          ctx.restore();
+        }
+      };
 
       new Chart(ctx, {
         type: "line",
@@ -179,49 +183,11 @@
           datasets: [{
             label: "Настроение",
             data: data,
-            fill: {
-              target: 'origin',
-              above: gradientUp,
-              below: gradientDown
-            },
-            segment: {
-              borderColor: function(ctx) {
-                const value = ctx.p1.parsed.y;
-                const nextValue = ctx.p0.parsed.y;
-                
-                // Если оба значения положительные
-                if(value >= 0 && nextValue >= 0) {
-                  return '#10b981'; // Зеленый
-                }
-                // Если оба значения отрицательные 
-                else if(value <= 0 && nextValue <= 0) {
-                  return '#ef4444'; // Красный
-                }
-                // Если переход через ноль (от + к -)
-                else if(value <= 0 && nextValue > 0) {
-                  const gradient = ctx.chart.ctx.createLinearGradient(0, ctx.p0.parsed.y, 0, ctx.p1.parsed.y);
-                  gradient.addColorStop(0, '#10b981'); // Зеленый
-                  gradient.addColorStop(1, '#ef4444'); // Красный
-                  return gradient;
-                }
-                // Если переход через ноль (от - к +)
-                else {
-                  const gradient = ctx.chart.ctx.createLinearGradient(0, ctx.p0.parsed.y, 0, ctx.p1.parsed.y);
-                  gradient.addColorStop(0, '#ef4444'); // Красный
-                  gradient.addColorStop(1, '#10b981'); // Зеленый
-                  return gradient;
-                }
-              }
-            },
-            pointBackgroundColor: function(context) {
-              const value = context.raw;
-              if(value > 0) {
-                return '#10b981'; // Зеленый для положительных
-              } else if(value < 0) {
-                return '#ef4444'; // Красный для отрицательных
-              } else {
-                return '#facc15'; // Желтый для нуля
-              }
+            borderColor: '#0ea5e9',
+            pointBackgroundColor: function (context) {
+              const idx = context.dataIndex;
+              const hasNote = details[idx].entries.some(e => e.note && e.note.trim() !== "");
+              return hasNote ? '#facc15' : '#0ea5e9';
             },
             tension: 0.4,
             pointRadius: 3,
@@ -234,88 +200,95 @@
           maintainAspectRatio: true,
           scales: {
             y: {
-              min: -4,
-              max: 4,
+              min: -4.5,
+              max: 4.5,
               title: {
                 display: true,
                 text: "Уровень настроения",
-                font: {
-                  size: 11
-                }
+                font: { size: 11 }
               },
-              grid: {
-                color: "#e5e7eb"
-              },
+              grid: { color: "#e5e7eb" },
               ticks: {
-                font: {
-                  size: 10
-                }
+                font: { size: 10 },
+                callback: value => (value === -4.5 || value === 4.5) ? '' : value
               }
             },
             x: {
               title: {
                 display: true,
                 text: "Дата",
-                font: {
-                  size: 11
-                }
+                font: { size: 11 }
               },
-              grid: {
-                color: "#f3f4f6"
-              },
+              grid: { color: "#f3f4f6" },
               ticks: {
-                font: {
-                  size: 10
-                },
+                font: { size: 10 },
                 maxRotation: 45,
                 minRotation: 45
               }
             }
           },
           plugins: {
-            legend: {
-              display: false
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                title: context => {
+                  const idx = context[0].dataIndex;
+                  const d = details[idx].date;
+                  const dateObj = new Date(d);
+                  return dateObj.toLocaleDateString("ru-RU", {
+                    day: "2-digit", month: "long", year: "numeric", weekday: "long"
+                  });
+                },
+                label: context => {
+                  const idx = context.dataIndex;
+                  return details[idx].entries.map(e => {
+                    let s = `${e.time}: ${e.mood > 0 ? '+' : ''}${e.mood}`;
+                    if (e.note) s += ` (Комментарий: ${e.note})`;
+                    return s;
+                  });
+                }
+              }
+            },
+            datalabels: {
+              display: true,
+              align: 'top',
+              anchor: 'end',
+              font: { size: 10, weight: 'bold' },
+              formatter: v => v >= 0 ? '+' + v.toFixed(1) : v.toFixed(1),
+              color: '#0ea5e9'
             }
           }
-        }
+        },
+        plugins: [moodBackgroundPlugin, ChartDataLabels]
       });
     }
 
     function calculateStats(data) {
-      // Среднее настроение
-      const sum = data.reduce((acc, item) => acc + item.mood, 0);
+      const sum = data.reduce((a, v) => a + v, 0);
       const avg = sum / data.length;
       document.getElementById("avgMood").textContent = avg.toFixed(1);
-      
-      // Положительные и отрицательные дни
-      const positiveDays = data.filter(item => item.mood > 0).length;
-      const negativeDays = data.filter(item => item.mood < 0).length;
+
+      const positiveDays = data.filter(v => v > 0).length;
+      const negativeDays = data.filter(v => v < 0).length;
       document.getElementById("positiveDays").textContent = `${positiveDays}/${data.length}`;
       document.getElementById("negativeDays").textContent = `${negativeDays}/${data.length}`;
 
-      // Расчет стриков
-      let currentPositiveStreak = 0;
-      let maxPositiveStreak = 0;
-      let currentNegativeStreak = 0;
-      let maxNegativeStreak = 0;
-
-      data.forEach(item => {
-        if (item.mood > 0) {
-          currentPositiveStreak++;
-          currentNegativeStreak = 0;
-          maxPositiveStreak = Math.max(maxPositiveStreak, currentPositiveStreak);
-        } else if (item.mood < 0) {
-          currentNegativeStreak++;
-          currentPositiveStreak = 0;
-          maxNegativeStreak = Math.max(maxNegativeStreak, currentNegativeStreak);
+      let posStreak = 0, maxPos = 0, negStreak = 0, maxNeg = 0;
+      data.forEach(v => {
+        if (v > 0) {
+          posStreak++; negStreak = 0;
+          maxPos = Math.max(maxPos, posStreak);
+        } else if (v < 0) {
+          negStreak++; posStreak = 0;
+          maxNeg = Math.max(maxNeg, negStreak);
         } else {
-          currentPositiveStreak = 0;
-          currentNegativeStreak = 0;
+          posStreak = negStreak = 0;
         }
       });
 
-      document.getElementById("positiveStreak").textContent = `Стрик: ${currentPositiveStreak} (макс: ${maxPositiveStreak})`;
-      document.getElementById("negativeStreak").textContent = `Стрик: ${currentNegativeStreak} (макс: ${maxNegativeStreak})`;
+      document.getElementById("positiveStreak").textContent = `Стрик: ${posStreak} (макс: ${maxPos})`;
+      document.getElementById("negativeStreak").textContent = `Стрик: ${negStreak} (макс: ${maxNeg})`;
     }
 
     drawChart();
