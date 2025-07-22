@@ -8,6 +8,7 @@ from aiogram.types import Update
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,35 +18,53 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-PORT = int(os.getenv("PORT", 10000))
+PORT = int(os.getenv("PORT", 8000))
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
-if not BOT_TOKEN:
-    raise ValueError("Не задана переменная окружения BOT_TOKEN")
+# Временно отключаем проверку BOT_TOKEN для тестирования
+# if not BOT_TOKEN:
+#     raise ValueError("Не задана переменная окружения BOT_TOKEN")
 
 CSV_PATH = "data/mood.csv"
 app = FastAPI()
 
-# Статика
+# CORS для разработки
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8080", "http://localhost:8081", "http://localhost:8082"],  # Vite dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Статика - обновляем путь для новой структуры
+# В продакшене здесь будет собранный React-приложение
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Telegram Bot
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
-router = Router()
-dp.include_router(router)
+if BOT_TOKEN:
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
+    router = Router()
+    dp.include_router(router)
+else:
+    bot = None
+    dp = None
+    router = None
 
 # FastAPI endpoints
 
 
 @app.get("/")
 def serve_index():
+    """Отдаёт главную страницу - старый HTML или собранный React"""
     return FileResponse("static/index.html")
 
 
-@app.get("/mood.csv", include_in_schema=False)
+@app.get("/api/mood.csv", include_in_schema=False)
 def get_csv():
+    """API endpoint для получения CSV данных"""
     csv_path_abs = os.path.abspath(CSV_PATH)
     logger.info(f"Запрос на получение файла: {csv_path_abs}")
 
@@ -80,8 +99,9 @@ def get_csv():
             )
 
 
-@app.post("/upload", include_in_schema=False)
+@app.post("/api/upload", include_in_schema=False)
 async def upload_file(file: UploadFile = File(...)):
+    """API endpoint для загрузки CSV файла"""
     try:
         os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
         with open(CSV_PATH, "wb") as buffer:
@@ -92,9 +112,23 @@ async def upload_file(file: UploadFile = File(...)):
         logger.error(f"Ошибка при загрузке файла: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Сохраняем старые endpoints для обратной совместимости
+@app.get("/mood.csv", include_in_schema=False)
+def get_csv_legacy():
+    """Legacy endpoint для обратной совместимости"""
+    return get_csv()
+
+
+@app.post("/upload", include_in_schema=False)
+async def upload_file_legacy(file: UploadFile = File(...)):
+    """Legacy endpoint для обратной совместимости"""
+    return await upload_file(file)
+
 # Установка Webhook
 @app.get("/set-webhook", include_in_schema=True)
 async def set_webhook():
+    if not BOT_TOKEN:
+        raise HTTPException(status_code=400, detail="BOT_TOKEN не задан")
     if not WEBHOOK_URL:
         raise HTTPException(status_code=400, detail="WEBHOOK_URL не задан")
     result = await bot.set_webhook(f"{WEBHOOK_URL}/webhook")
@@ -104,6 +138,8 @@ async def set_webhook():
 # Получение Telegram-обновлений
 @app.post("/webhook", include_in_schema=False)
 async def telegram_webhook(request: Request):
+    if not BOT_TOKEN:
+        raise HTTPException(status_code=400, detail="BOT_TOKEN не задан")
     try:
         data = await request.json()
         update = Update.model_validate(data)

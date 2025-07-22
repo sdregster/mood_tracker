@@ -1,0 +1,21 @@
+services:
+  app:
+    build: .
+    ports:
+      - "10000:10000"
+    environment:
+      - PORT=10000
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+    volumes:
+      - ./static:/app/static
+      - ./data:/app/data
+    command: >
+      sh -c "mkdir -p /app/data &&
+             [ ! -f /app/data/mood.csv ] && echo 'full_date,date,weekday,time,mood,activities,note_title,note' > /app/data/mood.csv;
+             uvicorn main:app --host 0.0.0.0 --port 10000"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:10000/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,21 +1,43 @@
+version: '3.8'
+
 services:
-  app:
-    build: .
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
-      - "10000:10000"
+      - "8000:8000"
     environment:
-      - PORT=10000
       - BOT_TOKEN=${BOT_TOKEN}
       - WEBHOOK_URL=${WEBHOOK_URL}
+      - PORT=8000
     volumes:
-      - ./static:/app/static
-      - ./data:/app/data
-    command: >
-      sh -c "mkdir -p /app/data &&
-             [ ! -f /app/data/mood.csv ] && echo 'full_date,date,weekday,time,mood,activities,note_title,note' > /app/data/mood.csv;
-             uvicorn main:app --host 0.0.0.0 --port 10000"
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:10000/" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - ./backend/data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Для продакшена - единый контейнер с собранным фронтендом
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8000:8000"
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - PORT=8000
+    volumes:
+      - ./backend/data:/app/data
+    restart: unless-stopped 

@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Центровка - дизайн-система для визуализации эмоциональных колебаний */
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 25% 27%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    --primary: 215 28% 17%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 215 25% 27%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 215 25% 27%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 215 28% 17%;
+    --radius: 0.75rem;
+    
+    /* Центровка цветовая схема */
+    --balanced: 120 45% 55%;        /* Зеленый - сбалансированность */
+    --moderate: 45 90% 60%;         /* Желтый - умеренное отклонение */
+    --extreme: 0 75% 60%;           /* Красный - выраженное колебание */
+    --center-line: 215 20% 65%;     /* Серый для центральной линии */
+    
+    /* Эмоциональная шкала */
+    --depression-deep: 225 60% 35%;    /* Темно-синий */
+    --depression-mild: 210 50% 50%;    /* Синий */
+    --neutral: 120 45% 55%;            /* Зеленый центр */
+    --hypo-mild: 30 70% 55%;           /* Оранжевый */
+    --hypo-extreme: 0 75% 60%;         /* Красный */
+    
+    /* Тени */
+    --shadow-soft: 0 2px 8px hsl(var(--foreground) / 0.05);
+    --shadow-medium: 0 4px 16px hsl(var(--foreground) / 0.1);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 215 28% 17%;
+    --foreground: 210 20% 98%;
+    --card: 215 28% 17%;
+    --card-foreground: 210 20% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 210 20% 98%;
+    --primary-foreground: 215 28% 17%;
+    --secondary: 215 32% 24%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 32% 24%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 215 32% 24%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 32% 24%;
+    --input: 215 32% 24%;
+    --ring: 210 20% 98%;
+    
+    /* Центровка цветовая схема для темной темы */
+    --balanced: 120 35% 45%;
+    --moderate: 45 80% 55%;
+    --extreme: 0 70% 55%;
+    --center-line: 215 20% 45%;
+    
+    /* Эмоциональная шкала для темной темы */
+    --depression-deep: 225 50% 25%;
+    --depression-mild: 210 40% 40%;
+    --neutral: 120 35% 45%;
+    --hypo-mild: 30 60% 50%;
+    --hypo-extreme: 0 70% 55%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

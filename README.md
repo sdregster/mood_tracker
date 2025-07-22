@@ -1,102 +1,189 @@
-# Трекер настроения
+# Mood Tracker - Монрепо
 
-Проект представляет собой веб-сервис для визуализации данных о настроении, экспортированных из приложения Daylio. Состоит из двух компонентов:
-- FastAPI веб-приложение для отображения графика настроения
-- Telegram бот для загрузки CSV-файлов из Daylio
+Современное приложение для отслеживания настроения с красивым интерфейсом и Telegram-ботом.
 
-## Требования
+## 🏗️ Структура проекта
 
-- Docker и Docker Compose
-- Telegram аккаунт для создания бота
-- Приложение Daylio для экспорта данных
-
-## Установка и настройка
-
-### 1. Клонирование репозитория
-
-```bash
-git clone <URL-репозитория>
-cd mood_tracker
+```
+mood_tracker/
+├── backend/          # FastAPI + Telegram-бот
+│   ├── main.py       # Основное приложение
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── data/         # CSV данные
+└── frontend/         # React-приложение
+    ├── package.json
+    ├── src/
+    └── vite.config.ts
 ```
 
-### 2. Создание Telegram бота через BotFather
+## 🚀 Быстрый старт
 
-1. Откройте Telegram и найдите @BotFather
-2. Отправьте команду `/newbot`
-3. Следуйте инструкциям, чтобы создать нового бота:
-   - Укажите имя бота (например, "Mood Tracker Bot")
-   - Укажите уникальное имя пользователя, заканчивающееся на "bot" (например, "my_mood_tracker_bot")
-4. BotFather предоставит вам токен доступа к API в формате `123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ`
-5. Сохраните этот токен - он понадобится для настройки проекта
+### 1. Установка зависимостей
 
-### 3. Настройка переменных окружения
+```powershell
+# Backend (Python)
+cd backend
+pip install -r requirements.txt
+
+# Frontend (Node.js)
+cd frontend
+npm install
+```
+
+### 2. Настройка переменных окружения
+
+Создайте файл `.env` в папке `backend/`:
+
+```env
+BOT_TOKEN=your_telegram_bot_token
+WEBHOOK_URL=https://your-domain.com
+PORT=10000
+```
+
+### 3. Сборка и запуск
+
+#### Вариант A: Раздельный запуск (для разработки)
+
+```powershell
+# Terminal 1: Backend
+cd backend
+python main.py
+
+# Terminal 2: Frontend
+cd frontend
+npm run dev
+```
+
+Фронтенд будет доступен на `http://localhost:8080`, бэкенд на `http://localhost:8000`.
+
+#### Вариант B: Единый запуск (для продакшена)
+
+```powershell
+# Сборка фронтенда
+.\build-frontend.ps1
+
+# Запуск backend (он отдаст собранный фронтенд)
+cd backend
+python main.py
+```
+
+Приложение будет доступно на `http://localhost:8000`.
+
+## 📱 Telegram-бот
+
+1. Создайте бота через [@BotFather](https://t.me/botfather)
+2. Получите токен и добавьте в `.env`
+3. Настройте webhook: `GET http://localhost:8000/set-webhook`
+4. Отправляйте CSV файлы боту для автоматической загрузки
+
+## 🔧 API Endpoints
+
+- `GET /api/mood.csv` - Получить CSV данные
+- `POST /api/upload` - Загрузить CSV файл
+- `GET /mood.csv` - Legacy endpoint
+- `POST /upload` - Legacy endpoint
+
+## 🛠️ Разработка
+
+### Backend
+
+```powershell
+cd backend
+python main.py
+```
+
+### Frontend
+
+```powershell
+cd frontend
+npm run dev
+```
+
+### Сборка фронтенда
+
+```powershell
+# Автоматическая сборка и копирование
+.\build-frontend.ps1
+
+# Или вручную
+cd frontend
+npm run build
+cd ..
+Copy-Item "frontend/dist/*" "backend/static/" -Recurse -Force
+```
+
+## 📊 Формат данных
+
+CSV файл должен содержать следующие колонки:
+
+```csv
+full_date,date,weekday,time,mood,activities,note_title,note
+2024-01-01T10:00:00,2024-01-01,понедельник,10:00,3,Работа,Хороший день,Продуктивный день
+```
+
+## 🐳 Docker
+
+### Разработка (раздельные контейнеры)
+
+```powershell
+# Запуск backend и frontend в отдельных контейнерах
+docker-compose up backend frontend
+
+# Или только backend
+docker-compose up backend
+
+# Или только frontend
+docker-compose up frontend
+```
+
+Backend будет доступен на `http://localhost:8000`, frontend на `http://localhost:8080`.
+
+### Продакшен (единый контейнер)
+
+```powershell
+# Сборка и запуск единого контейнера
+docker-compose up app
+
+# Или в фоновом режиме
+docker-compose up -d app
+```
+
+Приложение будет доступно на `http://localhost:8000`.
+
+### Переменные окружения
 
 Создайте файл `.env` в корне проекта:
 
-```
-BOT_TOKEN=ваш_токен_от_BotFather
-```
-
-### 4. Запуск проекта
-
-```bash
-docker compose up --build
+```env
+BOT_TOKEN=your_telegram_bot_token
+WEBHOOK_URL=https://your-domain.com
 ```
 
-После запуска приложение будет доступно по адресу http://localhost:10000
+## 📝 Возможности
 
-## Использование
+- 📈 Красивые графики настроения
+- 📱 Telegram-бот для загрузки данных
+- 🎨 Современный UI с Tailwind CSS
+- 📊 Статистика и фильтрация
+- 🔄 Автоматическая синхронизация
+- 📁 Загрузка/скачивание CSV файлов
 
-### Экспорт данных из Daylio
+## 🛠️ Технологии
 
-1. Откройте Daylio на телефоне
-2. Перейдите в раздел "Больше" (или "More")
-3. Выберите "Экспорт Записей" (или "Export Entries")
-4. Выберите формат "CSV (таблица)"
-5. Следуйте инструкциям приложения для экспорта
-6. Отправьте полученный CSV-файл своему Telegram боту
+### Backend
+- FastAPI
+- aiogram (Telegram Bot)
+- Python 3.8+
 
-### Загрузка данных через Telegram бота
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- Recharts
 
-1. Откройте чат с вашим ботом в Telegram
-2. Отправьте боту CSV-файл, экспортированный из Daylio
-3. Бот подтвердит загрузку сообщением "Загружено: 200"
+## 📄 Лицензия
 
-### Просмотр графика настроения
-
-1. Откройте браузер и перейдите на http://localhost:10000
-2. Вы увидите график вашего настроения, построенный на основе данных из Daylio
-
-## Структура проекта
-
-- `main.py` - FastAPI веб-приложение
-- `bot.py` - Telegram бот для приема файлов
-- `static/index.html` - Веб-страница с графиком
-- `Dockerfile` - Конфигурация контейнера для FastAPI
-- `Dockerfile.bot` - Конфигурация контейнера для бота
-- `docker-compose.yml` - Конфигурация для запуска сервисов
-- `requirements.txt` - Зависимости проекта
-- `data/mood.csv` - Файл с данными о настроении
-
-## Особенности работы с данными Daylio
-
-Проект ориентирован на стандартный формат экспорта Daylio, который имеет следующую структуру:
-```
-full_date,date,weekday,time,mood,activities,note_title,note
-```
-
-График настроения строится на основе колонок `full_date` (дата) и `mood` (настроение).
-
-## Устранение неполадок
-
-1. **Бот не отвечает**
-   - Проверьте правильность токена в файле `.env`
-   - Убедитесь, что оба контейнера запущены: `docker compose ps`
-   
-2. **Ошибки при загрузке файла**
-   - Проверьте формат CSV-файла
-   - Убедитесь, что директория `data` существует и имеет правильные права доступа
-
-3. **Пустой график**
-   - Проверьте структуру файла mood.csv
-   - Убедитесь, что значения настроения корректно парсятся скриптом
+MIT 
