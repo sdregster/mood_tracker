@@ -8,8 +8,27 @@ interface MoodChartProps {
 }
 
 const MoodChart: React.FC<MoodChartProps> = ({ data }) => {
-  // chartData теперь просто исходные данные
-  const chartData = React.useMemo(() => data, [data]);
+  // chartData теперь просто исходные данные, отсортированные по дате (новые справа)
+  const chartData = React.useMemo(() => {
+    return [...data]
+      .filter(item => item.full_date) // Фильтруем записи с валидными датами
+      .sort((a, b) => new Date(a.full_date).getTime() - new Date(b.full_date).getTime());
+  }, [data]);
+
+  // Функция для форматирования даты с днём недели
+  const formatDateWithWeekday = (fullDateStr: string) => {
+    try {
+      const date = new Date(fullDateStr);
+      if (isNaN(date.getTime())) {
+        return 'Неверная дата';
+      }
+      const day = date.getDate();
+      const weekday = date.toLocaleDateString('ru-RU', { weekday: 'short' });
+      return `${day} ${weekday}`;
+    } catch (error) {
+      return 'Ошибка даты';
+    }
+  };
 
   // Кастомный tooltip для одной записи
   const CustomTooltip = ({ active, payload }: any) => {
@@ -19,7 +38,7 @@ const MoodChart: React.FC<MoodChartProps> = ({ data }) => {
       
       return (
         <div className="bg-background border rounded-lg p-3 shadow-lg">
-          <div className="font-semibold">{entry.date}</div>
+          <div className="font-semibold">{entry.date || entry.full_date}</div>
           <div className="text-sm text-muted-foreground mb-2">
             Среднее: {entry.mood > 0 ? '+' : ''}{entry.mood.toFixed(1)}
           </div>
@@ -59,10 +78,13 @@ const MoodChart: React.FC<MoodChartProps> = ({ data }) => {
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis
             type="category"
-            dataKey="date"
+            dataKey="full_date"
             tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
             axisLine={{ stroke: 'hsl(var(--border))' }}
             tickLine={{ stroke: 'hsl(var(--border))' }}
+            tickFormatter={formatDateWithWeekday}
+            // Разворачиваем направление - новые дни справа
+            reversed={false}
           />
           <YAxis
             type="number"
