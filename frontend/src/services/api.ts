@@ -2,7 +2,9 @@
  * API сервис для работы с backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// В продакшене используем текущий домен, в разработке - localhost
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:8000');
 
 export interface MoodData {
   full_date: string;
@@ -24,7 +26,7 @@ export interface UploadResponse {
  */
 export const fetchMoodData = async (): Promise<MoodData[]> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/mood.csv`);
+    const response = await fetch(`${API_BASE_URL}/mood.csv`);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -46,7 +48,7 @@ export const uploadMoodData = async (file: File): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
     });
